@@ -1,0 +1,68 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: prod
+    image: sleek:${SLEEK_VERSION:-latest}
+    restart: always
+    env_file:
+    - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SLEEK_HOST: 0.0.0.0
+      SLEEK_DB_HOST: sleek-db
+      SLEEK_DB_PORT: 5432
+      SLEEK_DB_USER: sleek
+      SLEEK_DB_PASS: sleek
+      SLEEK_DB_BASE: sleek
+
+  db:
+    image: postgres:13.8-bullseye
+    hostname: sleek-db
+    environment:
+      POSTGRES_PASSWORD: "sleek"
+      POSTGRES_USER: "sleek"
+      POSTGRES_DB: "sleek"
+    volumes:
+    - sleek-db-data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: pg_isready -U sleek
+      interval: 2s
+      timeout: 3s
+      retries: 40
+
+  redis:
+    image: bitnami/redis:6.2.5
+    hostname: "sleek-redis"
+    restart: always
+    environment:
+      ALLOW_EMPTY_PASSWORD: "yes"
+    healthcheck:
+      test: redis-cli ping
+      interval: 1s
+      timeout: 3s
+      retries: 50
+
+  migrator:
+    image: sleek:${SLEEK_VERSION:-latest}
+    restart: "no"
+    command: alembic upgrade head
+    environment:
+      SLEEK_DB_HOST: sleek-db
+      SLEEK_DB_PORT: 5432
+      SLEEK_DB_USER: sleek
+      SLEEK_DB_PASS: sleek
+      SLEEK_DB_BASE: sleek
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  sleek-db-data:
+    name: sleek-db-data

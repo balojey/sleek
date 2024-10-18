@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "sleek"
+version = "0.1.0"
+description = ""
+authors = ["balo <98645847+balojey@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+python-fasthtml = "^0.6.13"
+alembic = "^1.13.3"
+sqlmodel = "^0.0.22"
+redis = "^5.1.1"
+psycopg2 = "^2.9.10"
+pydantic-settings = "^2.6.0"
+yarl = "^1.15.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
