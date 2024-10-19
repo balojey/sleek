@@ -61,7 +61,7 @@ class Settings(BaseSettings):
             user=self.db_user,
             password=self.db_pass,
             path=f"/{self.db_base}",
-            query={'ssl':'require'},
+            # query={'ssl':'require'},
         )
 
     model_config = SettingsConfigDict(

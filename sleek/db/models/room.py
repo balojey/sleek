@@ -4,6 +4,6 @@ from sqlmodel import SQLModel, Field
 
 
 class Room(SQLModel, table=True):
-    id: str = Field(default_factory=str(uuid4()))
-    created_at: str = Field(default_factory=datetime.now().strftime())
-    updated_at: str = Field(default_factory=datetime.now().strftime())
+    id: str = Field(default_factory=uuid4, primary_key=True)
+    created_at: str = Field(default_factory=datetime.now)
+    updated_at: str = Field(default_factory=datetime.now)

@@ -24,7 +24,7 @@ RUN apt-get purge -y \
 COPY . /app/src/
 RUN poetry install --only main
 
-CMD ["/usr/local/bin/python", "-m", "sleek"]
+CMD ["/usr/local/bin/python", "-m", "sleek/main.py"]
 
 FROM prod as dev
 
