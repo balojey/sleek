@@ -12,6 +12,7 @@ db = database('data/counts.db')
 counts = db.t.counts
 if counts not in db.t: counts.create(dict(name=str, count=int), pk='name')
 Count = counts.dataclass()
+print(settings.google_auth_client_id)
 
 ############################ AUTH BEGINS ######################
 
