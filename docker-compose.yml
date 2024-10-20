@@ -13,6 +13,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    ports:
+      # Exposes application port.
+    - "8080:8080"
     environment:
       SLEEK_HOST: 0.0.0.0
       SLEEK_DB_HOST: sleek-db

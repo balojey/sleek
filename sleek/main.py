@@ -1,72 +1,77 @@
 from fasthtml.common import *
+from fasthtml.oauth import GoogleAppClient, redir_url
 from datetime import datetime
 
-def render(room):
-    return Li(A(room.name, href=f"/rooms/{room.id}"))
+from sqlmodel import create_engine
 
-app,rt,rooms,Room = fast_app('data/drawapp.db', render=render, id=int, name=str, created_at=str, canvas_data=str, pk='id')
+from sleek.settings import settings
+from sleek.db.models.room import Room
 
-@rt("/")
-def get():
-    create_room = Form(Input(id="name", name="name", placeholder="New Room Name"),
-                       Button("Create Room"),
-                       hx_post="/rooms", hx_target="#rooms-list", hx_swap="afterbegin")
-    rooms_list = Ul(*rooms(order_by='id DESC'), id='rooms-list')
-    return Titled("QuickDraw", 
-                  create_room, rooms_list)
 
-@rt("/rooms")
-async def post(room:Room):
-    room.created_at = datetime.now().isoformat()
-    return rooms.insert(room)
+db = database('data/counts.db')
+counts = db.t.counts
+if counts not in db.t: counts.create(dict(name=str, count=int), pk='name')
+Count = counts.dataclass()
 
-@rt("/rooms/{id}")
-async def get(id:int):
-    room = rooms[id]
-    canvas = Canvas(id="canvas", width="800", height="600")
-    color_picker = Input(type="color", id="color-picker", value="#000000")
-    brush_size = Input(type="range", id="brush-size", min="1", max="50", value="10")
-    save_button = Button("Save Canvas", id="save-canvas", hx_post=f"/rooms/{id}/save", hx_vals="js:{canvas_data: JSON.stringify(canvas.toJSON())}")
+############################ AUTH BEGINS ######################
 
-    js = f"""
-    var canvas = new fabric.Canvas('canvas');
-    canvas.isDrawingMode = true;
-    canvas.freeDrawingBrush.color = '#000000';
-    canvas.freeDrawingBrush.width = 10;
+# Auth client setup for GitHub
+client = GoogleAppClient(settings.google_auth_client_id, 
+                         settings.google_auth_client_secret)
+auth_callback_path = "/auth_redirect"
 
-    // Load existing canvas data
-    fetch(`/rooms/{id}/load`)
-    .then(response => response.json())
-    .then(data => {{
-        if (data && Object.keys(data).length > 0) {{
-            canvas.loadFromJSON(data, canvas.renderAll.bind(canvas));
-        }}
-    }});
-    
-    document.getElementById('color-picker').onchange = function() {{
-        canvas.freeDrawingBrush.color = this.value;
-    }};
-    
-    document.getElementById('brush-size').oninput = function() {{
-        canvas.freeDrawingBrush.width = parseInt(this.value, 10);
-    }};
-    """
-    
-    return Titled(f"Room: {room.name}",
-                  A(Button("Leave Room"), href="/"),
-                  canvas,
-                  Div(color_picker, brush_size, save_button),
-                  Script(src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"),
-                  Script(js))
+def before(req, session):
+    # if not logged in, we send them to our login page
+    # logged in means:
+    # - 'user_id' in the session object, 
+    # - 'auth' in the request object
+    auth = req.scope['auth'] = session.get('user_id', None)
+    if not auth: return RedirectResponse('/login', status_code=303)
+    counts.xtra(name=auth)
+bware = Beforeware(before, skip=['/login', auth_callback_path])
 
-@rt("/rooms/{id}/save")
-async def post(id:int, canvas_data:str):
-    rooms.update({'canvas_data': canvas_data}, id)
-    return "Canvas saved successfully"
+app = FastHTML(debug=settings.debug, before=bware)
 
-@rt("/rooms/{id}/load")
-async def get(id:int):
-    room = rooms[id]
-    return room.canvas_data if room.canvas_data else "{}"
+# User asks us to Login
+@app.get('/login')
+def login(request):
+    redir = redir_url(request,auth_callback_path)
+    login_link = client.login_link(redir)
+    # we tell user to login at github
+    return P(A('Login with GitHub', href=login_link))    
 
-serve()
+# User comes back to us with an auth code from Github
+@app.get(auth_callback_path)
+def auth_redirect(code:str, request, session):
+    redir = redir_url(request, auth_callback_path)
+    user_info = client.retr_info(code, redir)
+    user_id = user_info[client.id_key] # get their ID
+    session['user_id'] = user_id # save ID in the session
+    # create a db entry for the user
+    if user_id not in counts: counts.insert(name=user_id, count=0)
+    return RedirectResponse('/', status_code=303)
+
+@app.get('/logout')
+def logout(session):
+    session.pop('user_id', None)
+    return RedirectResponse('/login', status_code=303)
+
+############################ AUTH ENDS ######################
+
+@app.get('/')
+def home(auth):
+    return Div(
+        P("Count demo"),
+        P(f"Count: ", Span(counts[auth].count, id='count')),
+        Button('Increment', hx_get='/increment', hx_target='#count'),
+        P(A('Logout', href='/logout'))
+    )
+
+@app.get('/increment')
+def increment(auth):
+    c = counts[auth]
+    c.count += 1
+    return counts.upsert(c).count
+
+
+serve(port=settings.port)

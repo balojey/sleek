@@ -34,11 +34,13 @@ class Settings(BaseSettings):
     workers_count: int = 1
     # Enable uvicorn reloading
     reload: bool = False
+    debug: bool = False
 
     # Current environment
     environment: str = "dev"
 
     log_level: LogLevel = LogLevel.INFO
+
     # Variables for the database
     db_host: str = os.getenv("SLEEK_DB_HOST", "localhost")   #"localhost"
     db_port: int = os.getenv("SLEEK_DB_PORT", 5432)
@@ -46,6 +48,10 @@ class Settings(BaseSettings):
     db_pass: str = os.getenv("SLEEK_DB_PASS", "sleek")   #"sleek"
     db_base: str = os.getenv("SLEEK_DB_BASE", "sleek")  #"sleek"
     db_echo: bool = False
+
+    # Variables for google auth
+    google_auth_client_id: str = os.getenv("SLEEK_GOOGLE_AUTH_CLIENT_ID", "")
+    google_auth_client_secret: str = os.getenv("SLEEK_GOOGLE_AUTH_CLIENT_SECRET", "")
 
     @property
     def db_url(self) -> URL:

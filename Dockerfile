@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y \
 
 
 RUN pip install poetry==1.4.2
+RUN pip install setuptools
+RUN pip install typing-extensions
 
 # Configuring poetry
 RUN poetry config virtualenvs.create false
@@ -24,7 +26,7 @@ RUN apt-get purge -y \
 COPY . /app/src/
 RUN poetry install --only main
 
-CMD ["/usr/local/bin/python", "-m", "sleek/main.py"]
+CMD ["/usr/local/bin/python", "sleek/main.py"]
 
 FROM prod as dev
 
